@@ -18,6 +18,7 @@ A high-performance, asynchronous transaction processing engine built in Rust. Th
 
 - Rust toolchain (install via [rustup](https://rustup.rs/))
 - Cargo (included with Rust)
+- Python 3.x (optional, required only for running the `generate_csv.py` script to create test data)
 
 ### Installation
 
@@ -147,6 +148,20 @@ The application includes a sample `transactions.csv` file for manual testing tha
 - Disputes, resolutions, and chargebacks
 - Cases where transactions should fail (insufficient funds)
 
+#### Generating Test Data
+
+For testing with larger datasets, you can use the included Python script to generate random transaction data:
+
+```bash
+# Generate 10,000 random transactions
+python generate_csv.py 10000 > large_transactions.csv
+
+# Process the generated transactions
+cargo run -- large_transactions.csv --batch-size=5000 > large_accounts.csv
+```
+
+This script requires Python 3.x and generates a variety of transaction types with random client IDs, transaction IDs, and amounts.
+
 ## Performance Optimization Tips
 
 1. **Adjust batch size**: For large transaction files, increasing the batch size (e.g., `--batch-size=5000` or `--batch-size=10000`) can significantly improve throughput by reducing overhead.
@@ -174,7 +189,7 @@ The application includes a sample `transactions.csv` file for manual testing tha
 ## Project Structure
 
 ```
-payment-system-V2/
+payments-engine/
 ├── Cargo.toml           # Project dependencies and configuration
 ├── Cargo.lock           # Locked dependencies 
 ├── src/
@@ -185,6 +200,5 @@ payment-system-V2/
 │   ├── models.rs        # Data models for transactions and accounts
 │   └── error.rs         # Custom error types
 ├── transactions.csv     # Sample transaction data
-├── generate_csv.py      # Helper script to generate test data
-└── logs/                # Directory for log files
+└── generate_csv.py      # Python script to generate random test transactions
 ```
