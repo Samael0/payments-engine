@@ -75,6 +75,37 @@ client,available,held,total,locked
 3,0.0000,0.0000,0.0000,true
 ```
 
+## Assumptions
+
+1. Clients and transactions are uniquely identified by their IDs, and these IDs are valid.
+2. Transaction amounts are positive decimal values with up to 4 decimal places.
+3. Once an account is locked due to a chargeback, it cannot process any further transactions.
+4. Withdrawals cannot exceed a client's available balance.
+5. A dispute can only reference a deposit or withdrawal that exists and belongs to the same client.
+6. Transaction IDs (tx) are globally unique
+7. Transactions in the CSV file are chronologically ordered
+8. Only deposit transactions can be disputed
+9. When a chargeback occurs, the client's account is locked and no further transactions are processed
+10. Withdrawals fail silently if there are insufficient funds (rather than throwing an error)
+11. Client accounts are created as needed when processing transactions
+
+## Project Structure
+
+```
+payments-engine/
+├── Cargo.toml           # Project dependencies and configuration
+├── Cargo.lock           # Locked dependencies 
+├── src/
+│   ├── main.rs          # Application entry point and CLI handling
+│   ├── lib.rs           # Library exports and public API
+│   ├── engine.rs        # Core payment processing engine
+│   ├── processor.rs     # Transaction processing logic
+│   ├── models.rs        # Data models for transactions and accounts
+│   └── error.rs         # Custom error types
+├── transactions.csv     # Sample transaction data
+└── generate_csv.py      # Python script to generate random test transactions
+```
+
 ## Design Decisions
 
 ### Error Handling
@@ -171,34 +202,3 @@ This script requires Python 3.x and generates a variety of transaction types wit
    - For systems with multiple CPU cores and high memory, larger batch sizes may give better performance
 
 3. **Combine with parallel processing**: Batch processing works well alongside the async/concurrent streams architecture, providing multiple layers of optimization.
-
-## Assumptions
-
-1. Clients and transactions are uniquely identified by their IDs, and these IDs are valid.
-2. Transaction amounts are positive decimal values with up to 4 decimal places.
-3. Once an account is locked due to a chargeback, it cannot process any further transactions.
-4. Withdrawals cannot exceed a client's available balance.
-5. A dispute can only reference a deposit or withdrawal that exists and belongs to the same client.
-6. Transaction IDs (tx) are globally unique
-7. Transactions in the CSV file are chronologically ordered
-8. Only deposit transactions can be disputed
-9. When a chargeback occurs, the client's account is locked and no further transactions are processed
-10. Withdrawals fail silently if there are insufficient funds (rather than throwing an error)
-11. Client accounts are created as needed when processing transactions
-
-## Project Structure
-
-```
-payments-engine/
-├── Cargo.toml           # Project dependencies and configuration
-├── Cargo.lock           # Locked dependencies 
-├── src/
-│   ├── main.rs          # Application entry point and CLI handling
-│   ├── lib.rs           # Library exports and public API
-│   ├── engine.rs        # Core payment processing engine
-│   ├── processor.rs     # Transaction processing logic
-│   ├── models.rs        # Data models for transactions and accounts
-│   └── error.rs         # Custom error types
-├── transactions.csv     # Sample transaction data
-└── generate_csv.py      # Python script to generate random test transactions
-```
