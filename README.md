@@ -16,7 +16,7 @@ A high-performance, asynchronous transaction processing engine built in Rust. Th
 
 ### Prerequisites
 
-- Rust toolchain (install via [rustup](https://rustup.rs/))
+- Rust toolchain (install via [rustup](https://rustup.rs/)) (Built using Rust 1.86)
 - Cargo (included with Rust)
 - Python 3.x (optional, required only for running the `generate_csv.py` script to create test data)
 
