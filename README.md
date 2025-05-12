@@ -39,7 +39,9 @@ Basic usage:
 cargo run -- transactions.csv > accounts.csv
 ```
 
-Where `transactions.csv` is the input file containing the transactions to process and `accounts.csv` will contain the resulting account balances.
+Where:
+- `transactions.csv` is the input file containing the transactions to process
+- `> accounts.csv` is shell redirection that saves the output to the accounts.csv file
 
 Advanced usage with custom log directory and batch size:
 ```
@@ -54,12 +56,14 @@ cargo run -- transactions.csv --log-dir=custom_logs --batch-size=5000 > accounts
 | `--log-dir` | Directory where logs will be stored | `logs/` |
 | `--batch-size` | Number of transactions to process in a batch | `1000` |
 
+**Note:** The application outputs account balances to standard output (stdout). To save the output to a file, use shell redirection (`>`) as shown in the usage examples.
+
 ## Output
 
 The program produces two outputs:
 
-1. **Account balances (stdout)**: CSV data showing client account states with monetary values rounded to 4 decimal places
-2. **Logs (files)**: Detailed transaction processing logs saved to timestamped files in the logs directory
+1. **Account balances (stdout)**: CSV data showing client account states with monetary values rounded to 4 decimal places. This output is typically redirected to a file using the shell redirection operator (`>`).
+2. **Logs (files)**: Detailed transaction processing logs saved to timestamped files in the logs directory.
 
 Example accounts.csv output:
 ```
