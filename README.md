@@ -6,6 +6,7 @@ A high-performance, asynchronous transaction processing engine built in Rust. Th
 
 - **Asynchronous processing**: Uses Tokio for concurrent operations
 - **Memory-efficient streaming**: Processes CSV data as a stream rather than loading it all at once
+- **Batch processing**: Configurable batch sizes to optimize performance and memory usage
 - **Full transaction support**: Handles deposits, withdrawals, disputes, resolutions, and chargebacks
 - **Robust error handling**: Comprehensive error handling with custom error types
 - **Precise decimal handling**: Uses rust_decimal for financial calculations with 4 decimal places precision
@@ -22,13 +23,13 @@ A high-performance, asynchronous transaction processing engine built in Rust. Th
 
 Clone the repository:
 ```
-git clone https://github.com/yourusername/payment-system-V2.git
-cd payment-system-V2
+git clone https://github.com/Samael0/payments-engine.git
+cd payments-engine
 ```
 
 Build the project:
 ```
-cargo build --release
+cargo build
 ```
 
 ## Usage
@@ -40,9 +41,9 @@ cargo run -- transactions.csv > accounts.csv
 
 Where `transactions.csv` is the input file containing the transactions to process and `accounts.csv` will contain the resulting account balances.
 
-Advanced usage with custom log directory:
+Advanced usage with custom log directory and batch size:
 ```
-cargo run -- transactions.csv --log-dir=custom_logs > accounts.csv
+cargo run -- transactions.csv --log-dir=custom_logs --batch-size=5000 > accounts.csv
 ```
 
 ### Command Line Arguments
@@ -51,6 +52,7 @@ cargo run -- transactions.csv --log-dir=custom_logs > accounts.csv
 |----------|-------------|---------|
 | `FILE` | Input CSV file with transactions | Required |
 | `--log-dir` | Directory where logs will be stored | `logs/` |
+| `--batch-size` | Number of transactions to process in a batch | `1000` |
 
 ## Output
 
@@ -94,6 +96,23 @@ fn create_csv_line_stream<R: AsyncRead + Unpin + 'static>(
 
 This approach allows the engine to process very large files (with millions of transactions) without excessive memory usage.
 
+### Batch Processing
+
+To optimize performance even more, transactions are processed in configurable batches instead of one at a time:
+
+```rust
+// Process transactions in batches
+let mut batch = Vec::with_capacity(batch_size);
+
+// Add transactions to batch until it reaches the specified size
+if batch.len() >= batch_size {
+    engine.process_transaction_batch(&mut batch).await?;
+    batch.clear();
+}
+```
+
+This reduces overhead by minimizing function calls and context switches and resulting in better throughput. Especially for large datasets. The batch size can be tuned based on the specific hardware and workload requirements.
+
 ### Concurrency
 
 The application uses Tokio's async runtime to process transactions concurrently. This design would allow for processing transactions from multiple CSV files or TCP streams simultaneously with minimal code changes.
@@ -123,6 +142,16 @@ The application includes a sample `transactions.csv` file for manual testing tha
 - Deposits and withdrawals
 - Disputes, resolutions, and chargebacks
 - Cases where transactions should fail (insufficient funds)
+
+## Performance Optimization Tips
+
+1. **Adjust batch size**: For large transaction files, increasing the batch size (e.g., `--batch-size=5000` or `--batch-size=10000`) can significantly improve throughput by reducing overhead.
+
+2. **Hardware considerations**: 
+   - For systems with limited memory, use smaller batch sizes
+   - For systems with multiple CPU cores and high memory, larger batch sizes may give better performance
+
+3. **Combine with parallel processing**: Batch processing works well alongside the async/concurrent streams architecture, providing multiple layers of optimization.
 
 ## Assumptions
 

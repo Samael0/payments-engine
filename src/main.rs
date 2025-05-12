@@ -5,7 +5,7 @@ use std::fs;
 use chrono::Local;
 use tracing_subscriber::{fmt, prelude::*, registry, EnvFilter};
 
-use payment_engine::process_transactions;
+use payment_engine::{process_transactions_with_options, ProcessingOptions};
 
 #[derive(Parser, Debug)]
 #[command(about = "A payment transaction processor")]
@@ -17,6 +17,10 @@ struct Args {
     /// Log directory (defaults to logs/)
     #[arg(long, default_value = "logs")]
     log_dir: PathBuf,
+    
+    /// Batch size for processing transactions (default: 1000)
+    #[arg(long, default_value = "1000")]
+    batch_size: usize,
 }
 
 #[tokio::main]
@@ -46,8 +50,13 @@ async fn main() -> Result<()> {
         .with(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
         .init();
     
+    // Configure processing options
+    let options = ProcessingOptions {
+        batch_size: args.batch_size,
+    };
+    
     // Process the transactions and output results
-    process_transactions(&args.input_file).await?;
+    process_transactions_with_options(&args.input_file, options).await?;
     
     Ok(())
 }

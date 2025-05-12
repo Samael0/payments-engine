@@ -11,9 +11,32 @@ use tokio::io::{AsyncRead, BufReader};
 use tokio_stream::wrappers::LinesStream;
 use tracing::{error, info};
 
+// Default batch size for transaction processing
+const DEFAULT_BATCH_SIZE: usize = 1000;
+
+/// Processing options for transaction handling
+pub struct ProcessingOptions {
+    /// Batch size for processing transactions
+    pub batch_size: usize,
+}
+
+impl Default for ProcessingOptions {
+    fn default() -> Self {
+        Self {
+            batch_size: DEFAULT_BATCH_SIZE,
+        }
+    }
+}
+
 /// Process transactions from a CSV file and output account balances
 pub async fn process_transactions(file_path: &Path) -> Result<()> {
-    info!("Processing transactions from: {:?}", file_path);
+    // Use default options
+    process_transactions_with_options(file_path, ProcessingOptions::default()).await
+}
+
+/// Process transactions from a CSV file with custom options
+pub async fn process_transactions_with_options(file_path: &Path, options: ProcessingOptions) -> Result<()> {
+    info!("Processing transactions from: {:?} with batch size: {}", file_path, options.batch_size);
     
     // Track processing time
     let start_time = Instant::now();
@@ -22,7 +45,7 @@ pub async fn process_transactions(file_path: &Path) -> Result<()> {
     let mut engine = PaymentEngine::new();
     
     // Process transactions in streaming fashion
-    process_transactions_stream(file_path, &mut engine).await?;
+    process_transactions_stream(file_path, &mut engine, options.batch_size).await?;
     
     // Calculate elapsed time
     let duration = start_time.elapsed();
@@ -34,7 +57,7 @@ pub async fn process_transactions(file_path: &Path) -> Result<()> {
 }
 
 /// Process transactions from a CSV file as a stream
-async fn process_transactions_stream(file_path: &Path, engine: &mut PaymentEngine) -> Result<()> {
+async fn process_transactions_stream(file_path: &Path, engine: &mut PaymentEngine, batch_size: usize) -> Result<()> {
     // Open the file
     let file = File::open(file_path).await?;
     let reader = BufReader::new(file);
@@ -45,8 +68,10 @@ async fn process_transactions_stream(file_path: &Path, engine: &mut PaymentEngin
     // Skip the header line
     let mut lines = lines_stream.skip(1);
     
-    // Process each line as it comes in
+    // Process transactions in batches
     let mut line_count = 0;
+    let mut batch = Vec::with_capacity(batch_size);
+    
     while let Some(line_result) = lines.next().await {
         match line_result {
             Ok(line) => {
@@ -55,9 +80,16 @@ async fn process_transactions_stream(file_path: &Path, engine: &mut PaymentEngin
                 // Parse the transaction
                 match parse_transaction(&line) {
                     Ok(transaction) => {
-                        // Process the transaction
-                        if let Err(e) = engine.process_transaction(transaction).await {
-                            error!("Failed to process transaction on line {}: {}", line_count, e);
+                        // Add to batch
+                        batch.push(transaction);
+                        
+                        // Process batch if it reaches the specified size
+                        if batch.len() >= batch_size {
+                            if let Err(e) = engine.process_transaction_batch(&mut batch).await {
+                                error!("Failed to process transaction batch: {}", e);
+                            }
+                            // Clear the batch for next iterations
+                            batch.clear();
                         }
                     }
                     Err(e) => {
@@ -68,6 +100,13 @@ async fn process_transactions_stream(file_path: &Path, engine: &mut PaymentEngin
             Err(e) => {
                 error!("Error reading line {}: {}", line_count + 1, e);
             }
+        }
+    }
+    
+    // Process any remaining transactions in the last batch
+    if !batch.is_empty() {
+        if let Err(e) = engine.process_transaction_batch(&mut batch).await {
+            error!("Failed to process final transaction batch: {}", e);
         }
     }
     
@@ -266,7 +305,7 @@ mod tests {
         
         // Process the file
         let mut engine = PaymentEngine::new();
-        process_transactions_stream(&file_path, &mut engine).await.unwrap();
+        process_transactions_stream(&file_path, &mut engine, DEFAULT_BATCH_SIZE).await.unwrap();
         
         // Check the results
         let accounts = engine.get_accounts();
@@ -302,7 +341,7 @@ mod tests {
         
         // Process the file
         let mut engine = PaymentEngine::new();
-        process_transactions_stream(&file_path, &mut engine).await.unwrap();
+        process_transactions_stream(&file_path, &mut engine, DEFAULT_BATCH_SIZE).await.unwrap();
         
         // Check the results
         let accounts = engine.get_accounts();
@@ -323,5 +362,49 @@ mod tests {
         assert_eq!(client2.held, dec!(0.0));
         assert_eq!(client2.total, dec!(0.0));
         assert!(client2.locked);
+    }
+
+    // Test with different batch sizes
+    #[tokio::test]
+    async fn test_batch_processing() {
+        // Create a temporary directory
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_batch.csv");
+        
+        // Create a test CSV file with multiple transactions
+        let mut csv_content = String::from("type,client,tx,amount\n");
+        
+        // Add 100 deposit transactions
+        for i in 1..=100 {
+            csv_content.push_str(&format!("deposit,1,{},{}.0\n", i, i));
+        }
+        
+        write(&file_path, csv_content).unwrap();
+        
+        // Process with small batch size (10)
+        let small_batch_size = 10;
+        let mut engine1 = PaymentEngine::new();
+        process_transactions_stream(&file_path, &mut engine1, small_batch_size).await.unwrap();
+        
+        // Process with large batch size (50)
+        let large_batch_size = 50;
+        let mut engine2 = PaymentEngine::new();
+        process_transactions_stream(&file_path, &mut engine2, large_batch_size).await.unwrap();
+        
+        // Results should be the same regardless of batch size
+        let accounts1 = engine1.get_accounts();
+        let accounts2 = engine2.get_accounts();
+        
+        assert_eq!(accounts1.len(), 1);
+        assert_eq!(accounts2.len(), 1);
+        
+        let client1 = accounts1.iter().find(|a| a.client == 1).unwrap();
+        let client2 = accounts2.iter().find(|a| a.client == 1).unwrap();
+        
+        // Sum of 1..=100 is 5050
+        assert_eq!(client1.available, dec!(5050.0));
+        assert_eq!(client1.total, dec!(5050.0));
+        assert_eq!(client1.available, client2.available);
+        assert_eq!(client1.total, client2.total);
     }
 }

@@ -3,8 +3,8 @@ pub mod models;
 pub mod error;
 mod processor;
 
-// Re-export main processing function for convenience
-pub use processor::process_transactions;
+// Re-export main processing functions for convenience
+pub use processor::{process_transactions, process_transactions_with_options, ProcessingOptions};
 
 #[cfg(test)]
 mod tests {
@@ -36,8 +36,11 @@ mod tests {
                           
         write(&file_path, csv_content).unwrap();
         
-        // Process the transactions
-        process_transactions(Path::new(&file_path)).await.unwrap();
+        // Process the transactions with a small batch size for testing
+        let options = ProcessingOptions {
+            batch_size: 5,  // Use a small batch size for testing
+        };
+        process_transactions_with_options(Path::new(&file_path), options).await.unwrap();
         
         // Note: Since process_transactions writes to stdout, we can't easily capture
         // the output in this test. In a real-world scenario, we might want to
@@ -63,6 +66,10 @@ mod tests {
         write(&file_path, csv_content).unwrap();
         
         // Process should complete without panic even with errors
-        process_transactions(Path::new(&file_path)).await.unwrap();
+        // Using a custom batch size to test the batch processing with errors
+        let options = ProcessingOptions {
+            batch_size: 2,  // Small batch size to test error handling in batches
+        };
+        process_transactions_with_options(Path::new(&file_path), options).await.unwrap();
     }
 }

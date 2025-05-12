@@ -1,7 +1,7 @@
 use crate::error::PaymentEngineError;
 use crate::models::{Account, AccountStore, Transaction, TransactionStore, TransactionType};
 use anyhow::Result;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, warn, error};
 
 /// The payment engine that processes transactions
 pub struct PaymentEngine {
@@ -15,6 +15,23 @@ impl PaymentEngine {
             accounts: AccountStore::new(),
             transactions: TransactionStore::new(),
         }
+    }
+
+    /// Process a batch of transactions
+    pub async fn process_transaction_batch(&mut self, transactions: &mut Vec<Transaction>) -> Result<()> {
+        debug!("Processing batch of {} transactions", transactions.len());
+        
+        // Process each transaction in the batch
+        let mut tx_ids = Vec::with_capacity(transactions.len());
+        for transaction in transactions.drain(..) {
+            tx_ids.push(transaction.tx);
+            if let Err(e) = self.process_transaction(transaction).await {
+                // Log the error but continue processing other transactions
+                error!("Error processing transaction: {}", e);
+            }
+        }
+        
+        Ok(())
     }
 
     /// Process a single transaction
