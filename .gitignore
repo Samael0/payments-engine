@@ -1,0 +1,9 @@
+# Generated build by Cargo
+/target/
+
+# Log files
+/logs/
+
+# Test files
+transactions.csv
+accounts.csv
