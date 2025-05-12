@@ -59,6 +59,32 @@ cargo run -- transactions.csv --log-dir=custom_logs --batch-size=5000 > accounts
 
 **Note:** The application outputs account balances to standard output (stdout). To save the output to a file, use shell redirection (`>`) as shown in the usage examples.
 
+## Testing
+
+### Running Unit Tests
+
+To run the unit tests for the project:
+
+```bash
+# Run all tests
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run a specific test or test module
+cargo test test_name_here
+cargo test module_name
+```
+
+### Test Coverage
+
+The tests cover the core functionality of the payment engine, including:
+- Transaction processing (deposits, withdrawals)
+- Dispute handling (disputes, resolutions, chargebacks)
+- Error conditions (insufficient funds, invalid transactions)
+- Account state management
+
 ## Output
 
 The program produces two outputs:
